@@ -65,11 +65,20 @@ Interval 10 detik melampaui minimum pembacaan 2 detik.
    Nilai sintetis tetap; jangan jalankan bersama sensor asli untuk room sama.
 5. Dari `flutter_app/`, jalankan `flutter pub get`, lalu Android emulator:
    `flutter run --dart-define=MQTT_HOST=10.0.2.2 --dart-define=MQTT_PORT=18883 --dart-define=API_BASE_URL=http://10.0.2.2:18000`.
-   Pastikan emulator bisa menjangkau endpoint host; kemampuan ini belum dibuktikan
-   oleh tes simulator. Untuk perangkat fisik, operator perlu listener LAN privat
-   terpisah dengan autentikasi/ACL/firewall. Jangan mengekspos broker anonymous.
+   Pastikan emulator bisa menjangkau endpoint host; Android runtime belum diuji.
+   Flutter saat ini hanya mendukung broker anonymous loopback proyek, belum autentikasi broker/TLS.
+   Template broker LAN berautentikasi tersedia untuk ESP32, tetapi belum dapat dipakai Flutter.
+   Jangan menonaktifkan autentikasi atau membuka broker anonymous ke LAN demi aplikasi.
 
 ## Uji dan demo
+
+Satu perintah pemeriksaan lokal tanpa layanan (membutuhkan `uv` dan Flutter):
+
+```sh
+sh tests/monitoring/check_local.sh
+```
+
+MySQL lokal tanpa Docker: ikuti `backend/monitoring/README.md`, jalankan `local_mysql.py --serve` dengan binary MySQL eksplisit. Runner membuat database baru, menjalankan acceptance, lalu menyediakan API untuk demo sampai Ctrl-C. Kredensial acak tetap di fixture privat, bukan Git.
 
 ```sh
 python3 -m unittest discover -s tests/monitoring -v
@@ -95,20 +104,21 @@ aplikasi harus menunjukkan status terakhir/belum diketahui, bukan pasti online.
 
 ## Status verifikasi QA
 
-Snapshot kerja integrasi 13 November 2026; penerimaan penuh **belum selesai**.
+Verifikasi integrasi 13 November 2026: demo lokal terisolasi teruji. Penerimaan hardware/Android dan pemakaian LAN penuh **belum selesai**.
 
 | Pemeriksaan | Hasil dan batas |
 |---|---|
 | Helper ESP32 + main.py | 4 PASS simulasi CPython; HTTP timeout dua siklus tetap MQTT publish. `python3 mqtt/self_check.py` PASS identitas/finite/retain/lifecycle/missing PINGRESP/loop sensor gagal. Bukan firmware fisik/thread nyata. |
-| HTTP acceptance layanan | 3 SKIP: API + MySQL terisolasi belum dijalankan; instance API DB-gagal terpisah belum ada. |
+| HTTP acceptance layanan | 7/7 PASS pada layanan nyata MySQL Community 8.4.7 dan FastAPI terisolasi, termasuk penyimpanan, GET, isolasi, validasi, dan DB-gagal 503. Lihat `backend/monitoring/RUNTIME.md`. |
 | Backend | 8/8 unit test mock DB PASS pada ulang QA (0.072s); bukan bukti MySQL nyata. |
 | MQTT jaringan | Runner QA PASS pada Mosquitto lokal 2.0.22: retain ketiga topik subscriber baru, normal offline retained, SIGKILL memicu LWT retained, online setelah restart simulator, MQTT lanjut saat HTTP ditolak. |
-| Reconnect dan room jaringan | Wi-Fi fisik, broker outage reconnect, isolasi room jaringan belum diuji oleh runner awal. Isolasi 48 topik diuji helper. |
-| Flutter | SDK 3.47.7/Dart 3.13.5; `flutter test --reporter expanded` 9/9 PASS: config, topik, ketidakpastian offline, stale response, validasi HTTP, UI tanpa refresh/reset room/retry, layout 320–1440. Mock/widget test, bukan Android end-to-end. |
-| Hardware/MySQL | Belum diuji. `mysqld --version` menunjukkan MariaDB 13.0.2, bukan MySQL. |
+| Reconnect dan room jaringan | Flutter socket nyata PASS: broker restart, reconnect/resubscribe, retained, dan isolasi 3S1/3S2. Wi-Fi ESP32 serta reconnect publisher simulator setelah broker outage belum dibuktikan. |
+| Flutter | Suite lokal 10 PASS + 1 SKIP opt-in; analisis bersih, APK debug berhasil. Socket test terpisah PASS dengan Mosquitto dan FastAPI/MySQL nyata. Lihat `flutter_app/SOCKET_TEST.md`. Bukan Android end-to-end. |
+| Auth/ACL broker | PASS: anonymous/password salah ditolak, publisher lintas-room dan reader write ditolak. Template LAN tidak diaktifkan; MQTT plaintext hanya jaringan privat terisolasi tepercaya. |
+| Hardware | ESP32/DHT22 fisik, wiring, dan Android runtime belum diuji. |
 
 Docker CLI tersedia tetapi daemon `unix:///home/vq/.docker/desktop/docker.sock`
 tidak tersedia. Mosquitto tidak di PATH; QA menemukan executable lokal di
 `/tmp/opencode/mosquitto-ws/mosquitto-2.0.22/src/mosquitto` dan membuat proses
 terisolasi sementara. Port3306 layanan lama tidak disentuh. Tidak ada klaim
-sensor fisik, Android atau MySQL berdasarkan simulasi. Tidak push/deployment.
+sensor fisik atau Android berdasarkan simulasi. MySQL asli diuji dari binary lokal terpisah, bukan layanan lama. Proses fixture telah dihentikan setelah verifikasi; data/log privat tetap disimpan. Tidak push/deployment.

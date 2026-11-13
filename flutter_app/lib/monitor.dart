@@ -222,15 +222,39 @@ class Monitor extends ChangeNotifier {
 }
 
 class MqttLink {
-  MqttLink(this.monitor, this.host, this.port);
+  MqttLink(this.monitor, this.host, this.port, {this.username, this.password}) {
+    _validateCredentials(username, password);
+  }
   final Monitor monitor;
   final String host;
   final int port;
+  String? username, password;
   MqttServerClient? _client;
   StreamSubscription? _messages;
   Timer? _retry;
   bool _closed = false;
   List<String> _topics = [];
+
+  static void _validateCredentials(String? u, String? p) {
+    if ((u == null) != (p == null)) {
+      throw const FormatException('Username dan password broker harus berpasangan');
+    }
+    if (u != null && (u.isEmpty || u.length > 128 || u.contains(RegExp(r'[\x00-\x1f]')))) {
+      throw const FormatException('Format username broker tidak valid');
+    }
+    if (p != null && (p.isEmpty || p.length > 256 || p.contains(RegExp(r'[\x00-\x1f]')))) {
+      throw const FormatException('Format password broker tidak valid');
+    }
+  }
+
+  void updateCredentials(String? u, String? p) {
+    _validateCredentials(u, p);
+    username = u;
+    password = p;
+    if (_client != null) {
+      _client!.disconnect();
+    }
+  }
 
   Future<void> start() async {
     if (_closed) return;
@@ -242,6 +266,7 @@ class MqttLink {
             'campus-app-${DateTime.now().microsecondsSinceEpoch}',
             port,
           )
+          ..setProtocolV311()
           ..keepAlivePeriod = 30
           ..connectTimeoutPeriod = 8000
           ..logging(on: false);
@@ -252,7 +277,11 @@ class MqttLink {
       _schedule();
     };
     try {
-      await client.connect();
+      if (username != null && password != null) {
+        await client.connect(username, password);
+      } else {
+        await client.connect();
+      }
       if (_closed) {
         client.disconnect();
         return;

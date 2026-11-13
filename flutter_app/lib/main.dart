@@ -7,11 +7,11 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     const host = String.fromEnvironment('MQTT_HOST', defaultValue: '10.0.2.2');
-    const port = int.fromEnvironment('MQTT_PORT', defaultValue: 1883);
+    const port = int.fromEnvironment('MQTT_PORT', defaultValue: 18883);
     final base = Uri.parse(
       const String.fromEnvironment(
         'API_BASE_URL',
-        defaultValue: 'http://10.0.2.2:8000',
+        defaultValue: 'http://10.0.2.2:18000',
       ),
     );
     if (host.isEmpty ||

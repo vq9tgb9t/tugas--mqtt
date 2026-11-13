@@ -10,6 +10,9 @@ python3 -m unittest discover -s tests/monitoring -v
 (
   cd flutter_app
   flutter analyze
-  flutter test
+  # Flutter tester uses local WebSocket; never send loopback through proxy.
+  env -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u http_proxy -u https_proxy -u all_proxy \
+    NO_PROXY=localhost,127.0.0.1,::1 no_proxy=localhost,127.0.0.1,::1 \
+    flutter test --concurrency=1
 )
 printf '%s\n' 'Local checks complete. SKIP is not PASS; hardware and live services require separate acceptance.'

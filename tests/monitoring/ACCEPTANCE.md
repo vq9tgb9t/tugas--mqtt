@@ -60,17 +60,30 @@ Catat waktu, hash checkout, versi tools/engine, perintah, exit code, log, dan
 screenshot UI untuk setiap langkah. Jika layanan/hardware tidak tersedia tulis
 **belum diuji**, bukan PASS. Widget test bukan bukti UI Android atau jaringan.
 
-## Blokir inspeksi awal
+## Bukti verifikasi runtime terisolasi (2026-11-13)
 
-- Docker CLI ada, daemon desktop socket tidak ada; tidak di-start/diubah.
-- Mosquitto tidak ada di PATH. Inspeksi lanjutan menemukan executable lokal
-  `/tmp/opencode/mosquitto-ws/mosquitto-2.0.22/src/mosquitto`.
-  Runner `mqtt_runtime.py` PASS dengan proses broker baru port loopback acak:
-  retain ketiga topik, normal offline retained, SIGKILL LWT retained, online
-  sesudah restart simulator, MQTT lanjut ketika HTTP connection refused.
-  Ini broker nyata + simulator, bukan sensor fisik. Wi-Fi/broker-outage reconnect,
-  isolasi room jaringan, MySQL dan Flutter belum dicakup runner.
-- Port3306 sudah dipakai layanan lama; tidak dihubungi/diubah.
-- mysqld melaporkan 13.0.2-MariaDB, bukan MySQL; belum membuat instance.
-- Flutter 3.47.7 / Dart 3.13.5 tersedia. Tes Counter bawaan bukan acceptance.
-- Sensor fisik/wiring/Android end-to-end belum diuji.
+1. **MySQL asli terisolasi**:
+   Menggunakan MySQL Community Server 8.4.7 minimal x86_64 lokal (`backend/monitoring/local_mysql.py`), datadir baru `/tmp/opencode/`, port loopback 13306, akun acak `monitoring_app`.
+   - `SELECT VERSION()`: `8.4.7` (Oracle MySQL Community, bukan MariaDB).
+   - Skema `monitoring_readings` dibuat otomatis tanpa mengubah DB lama.
+   - Uji opt-in 7/7 PASS (`test_database_failure` 503 DATABASE_UNAVAILABLE tanpa leak, `test_invalid_payloads_limits_identity` 422, `test_post_get_mysql_room_isolation_order` POST 201 + GET urutan DESC dan isolasi data 3S1/3S2).
+   - Baris tersimpan terverifikasi melalui koneksi DB independen pasca-uji (`esp32-3s1`: 2, `esp32-3s2`: 1). Bukti lengkap: `backend/monitoring/RUNTIME.md`.
+
+2. **Broker Mosquitto & Auth/ACL**:
+   - `tests/monitoring/mqtt_runtime.py` PASS: retained 3 topik, normal offline retained, LWT retained setelah SIGKILL, online setelah proses simulator restart, MQTT tetap publish saat HTTP connection refused.
+   - `mqtt/auth_check.py` PASS pada Mosquitto 2.0.22 build lokal: anonymous dan salah password ditolak; publish 3S1 diterima; publish lintas-ruangan (3S2) dan publish oleh reader ditolak dengan MQTT 5 PUBACK 0x87.
+
+3. **Flutter Real Socket & HTTP End-to-End**:
+   - `flutter_app/test/socket_integration_test.dart` PASS dengan broker nyata + API 18000; suite lokal terpisah 10 PASS dan 1 SKIP socket tanpa environment:
+     - Menerima retained message 3S1 lewat socket TCP nyata.
+     - Switch ruangan ke 3S2 menerima nilai 3S2; publish baru di 3S1 tidak bocor ke tampilan 3S2.
+     - Penolakan koneksi HTTP tidak merusak live MQTT.
+     - Broker dimatikan (SIGKILL): UI beralih ke status tak terkonfirmasi.
+     - Broker dihidupkan ulang: Flutter otomatis reconnect dan resubscribe.
+     - POST /readings ke API nyata FastAPI + MySQL 8.4.7 berhasil (201), lalu dibaca kembali lewat `httpHistory` Flutter. Bukti lengkap: `flutter_app/SOCKET_TEST.md`.
+
+## Batas yang belum diuji (tetap jujur)
+
+- **Sensor fisik DHT22 & mikrokontroler ESP32**: Firmware MicroPython dan driver Pin/DHT22 telah siap dan lolos simulasi CPython `mqtt/self_check.py`, tetapi belum di-flash ke hardware fisik karena papan fisik tidak terhubung.
+- **Wi-Fi fisik**: Reconnect Wi-Fi belum dibuktikan pada radio ESP32 nyata. Simulasi bukan bukti keberhasilan jaringan Wi-Fi.
+- **Android Device / UI Rendering**: APK Android debug berhasil dibuild (`flutter build apk --debug`), tetapi belum dijalankan pada emulator/device fisik (hanya Linux desktop environment tanpa Android emulator yang berjalan). Layar visual diuji via Flutter widget tester di berbagai resolusi (320px–1440px).

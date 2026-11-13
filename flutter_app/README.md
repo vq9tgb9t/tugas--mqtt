@@ -12,7 +12,7 @@ flutter pub get
 flutter analyze
 flutter test
 flutter build apk --debug
-flutter run -d <android-device-id> --dart-define=MQTT_HOST=10.0.2.2 --dart-define=MQTT_PORT=1883 --dart-define=API_BASE_URL=http://10.0.2.2:8000
+flutter run -d <android-device-id> --dart-define=MQTT_HOST=10.0.2.2 --dart-define=MQTT_PORT=18883 --dart-define=API_BASE_URL=http://10.0.2.2:18000
 ```
 
 `10.0.2.2` adalah host komputer dari emulator Android. Perangkat fisik gunakan alamat LAN host proyek yang dapat dijangkau. `MQTT_HOST` tanpa skema/path, port 1..65535, API HTTP/HTTPS tanpa kredensial/query/fragment. Build defines bukan tempat secrets. MQTT TCP plaintext dan HTTP cleartext diizinkan untuk layanan lokal proyek; jangan pakai jaringan publik atau data sensitif. Tidak mengubah layanan global.
@@ -43,7 +43,8 @@ Hasil worker:
 - `flutter test`: 9 tes monitoring lulus. Parity 16 lokasi, lantai 4, pasangan gedung salah, MQTT exact/invalid/range/disconnect, race respons HTTP lama, parsing identitas/UTC/order, widget realtime/room/error, layout 320/390/768/1440 dengan skala teks 2 dan scroll menuju empty state. Bukan Counter template.
 - `flutter build apk --debug`: berhasil menghasilkan APK. Gradle memberi warning handshake localhost dan versi SDK XML, build tetap sukses.
 - `flutter devices`: hanya Linux. `flutter emulators`: tidak ada emulator. **UI Android nyata belum dijalankan**, belum ada screenshot/perangkat fisik/TalkBack. Widget tests bukan bukti Android nyata.
-- Integrasi socket MQTT Mosquitto, retained subscriber baru, broker restart/resubscribe, LWT ESP32, HTTP FastAPI/MySQL nyata belum diuji oleh worker ini; perlu QA checkout lengkap. Sensor fisik tidak diverifikasi.
+- Update: integration test socket MQTT Mosquitto dan HTTP FastAPI/MySQL nyata PASS, diverifikasi ulang koordinator; log `/tmp/opencode/monitoring-flutter-live.log`. Mencakup retained, isolasi room, reconnect/resubscribe setelah broker restart, HTTP failure independence, dan riwayat backend nyata. Ini bukan UI Android hardware. Perintah, bug protokol yang diperbaiki, dan batas bukti di [SOCKET_TEST.md](SOCKET_TEST.md). LWT firmware, sensor fisik dan UI Android tetap bukan bukti test Flutter ini.
+- Scope koneksi Flutter sekarang anonymous loopback proyek saja; belum mendukung broker LAN authenticated/TLS. Jangan membuka anonymous LAN atau mengirim secrets lewat build defines.
 
 QA Android: mulai 3S1, kirim retained tiga topik; pastikan angka berubah tanpa refresh. Putus broker: aplikasi tak terkonfirmasi; hidupkan kembali: tiga subscription pulih. Ganti 3S1 ke 3D1 sambil HTTP lama tertunda: tidak boleh ada angka/riwayat 3S1. Matikan HTTP: MQTT tetap memperbarui. Uji POST backend lalu **Muat riwayat**, cek UTC dan urutan. Catat perangkat, broker/API lokal, screenshot, hasil nyata terpisah dari simulasi.
 
