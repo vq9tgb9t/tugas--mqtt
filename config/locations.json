@@ -1,0 +1,8 @@
+{
+  "campus": "kampus2uinsaizu",
+  "example_floor_only": true,
+  "buildings": {
+    "gedung-saintek": ["3S1", "3S2", "3S3", "3S4", "3S5", "3S6", "3S7", "3S8"],
+    "gedung-dakwah": ["3D1", "3D2", "3D3", "3D4", "3D5", "3D6", "3D7", "3D8"]
+  }
+}
