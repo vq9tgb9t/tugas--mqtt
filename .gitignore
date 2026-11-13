@@ -1,0 +1,14 @@
+# Local credentials and generated files
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.dart_tool/
+build/
+local.properties
+esp32/config.py
+mqtt/data/
+mqtt/log/
