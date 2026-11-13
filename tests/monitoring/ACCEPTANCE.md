@@ -70,7 +70,7 @@ screenshot UI untuk setiap langkah. Jika layanan/hardware tidak tersedia tulis
    - Baris tersimpan terverifikasi melalui koneksi DB independen pasca-uji (`esp32-3s1`: 2, `esp32-3s2`: 1). Bukti lengkap: `backend/monitoring/RUNTIME.md`.
 
 2. **Broker Mosquitto & Auth/ACL**:
-   - `tests/monitoring/mqtt_runtime.py` PASS: retained 3 topik, normal offline retained, LWT retained setelah SIGKILL, online setelah proses simulator restart, MQTT tetap publish saat HTTP connection refused.
+   - `tests/monitoring/mqtt_runtime.py` PASS: retained 3 topik, normal offline retained, LWT retained setelah SIGKILL, online setelah proses simulator restart, MQTT tetap publish saat HTTP connection refused, dan publisher PID sama reconnect setelah broker restart lalu memulihkan retained status.
    - `mqtt/auth_check.py` PASS pada Mosquitto 2.0.22 build lokal: anonymous dan salah password ditolak; publish 3S1 diterima; publish lintas-ruangan (3S2) dan publish oleh reader ditolak dengan MQTT 5 PUBACK 0x87.
 
 3. **Flutter Real Socket & HTTP End-to-End**:

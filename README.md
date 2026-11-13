@@ -66,9 +66,10 @@ Interval 10 detik melampaui minimum pembacaan 2 detik.
 5. Dari `flutter_app/`, jalankan `flutter pub get`, lalu Android emulator:
    `flutter run --dart-define=MQTT_HOST=10.0.2.2 --dart-define=MQTT_PORT=18883 --dart-define=API_BASE_URL=http://10.0.2.2:18000`.
    Pastikan emulator bisa menjangkau endpoint host; Android runtime belum diuji.
-   Flutter saat ini hanya mendukung broker anonymous loopback proyek, belum autentikasi broker/TLS.
-   Template broker LAN berautentikasi tersedia untuk ESP32, tetapi belum dapat dipakai Flutter.
-   Jangan menonaktifkan autentikasi atau membuka broker anonymous ke LAN demi aplikasi.
+   Untuk broker berautentikasi, tekan ikon kunci **Kredensial broker MQTT** dan isi akun reader.
+   Kredensial hanya di memori, tidak disimpan ke Git/build. Template ACL awal reader hanya 3S1;
+   tambahkan grant eksplisit bila ruangan lain dipakai. MQTT belum TLS: hanya jaringan privat terisolasi tepercaya.
+   Jangan menonaktifkan autentikasi atau membuka broker anonymous ke LAN.
 
 ## Uji dan demo
 
@@ -112,8 +113,8 @@ Verifikasi integrasi 13 November 2026: demo lokal terisolasi teruji. Penerimaan 
 | HTTP acceptance layanan | 7/7 PASS pada layanan nyata MySQL Community 8.4.7 dan FastAPI terisolasi, termasuk penyimpanan, GET, isolasi, validasi, dan DB-gagal 503. Lihat `backend/monitoring/RUNTIME.md`. |
 | Backend | 8/8 unit test mock DB PASS pada ulang QA (0.072s); bukan bukti MySQL nyata. |
 | MQTT jaringan | Runner QA PASS pada Mosquitto lokal 2.0.22: retain ketiga topik subscriber baru, normal offline retained, SIGKILL memicu LWT retained, online setelah restart simulator, MQTT lanjut saat HTTP ditolak. |
-| Reconnect dan room jaringan | Flutter socket nyata PASS: broker restart, reconnect/resubscribe, retained, dan isolasi 3S1/3S2. Wi-Fi ESP32 serta reconnect publisher simulator setelah broker outage belum dibuktikan. |
-| Flutter | Suite lokal 10 PASS + 1 SKIP opt-in; analisis bersih, APK debug berhasil. Socket test terpisah PASS dengan Mosquitto dan FastAPI/MySQL nyata. Lihat `flutter_app/SOCKET_TEST.md`. Bukan Android end-to-end. |
+| Reconnect dan room jaringan | Flutter socket nyata PASS: broker restart, reconnect/resubscribe, retained, dan isolasi 3S1/3S2. Runner MQTT juga PASS: publisher simulator PID sama reconnect setelah broker restart dan memulihkan retained. Wi-Fi ESP32 fisik belum dibuktikan. |
+| Flutter | Suite lokal 12 PASS + 2 SKIP opt-in; analisis bersih, APK debug terbaru berhasil. Uji opt-in koneksi Flutter ke broker berpassword juga PASS. Socket test terpisah PASS dengan Mosquitto dan FastAPI/MySQL nyata. Lihat `flutter_app/SOCKET_TEST.md`. Bukan Android end-to-end. |
 | Auth/ACL broker | PASS: anonymous/password salah ditolak, publisher lintas-room dan reader write ditolak. Template LAN tidak diaktifkan; MQTT plaintext hanya jaringan privat terisolasi tepercaya. |
 | Hardware | ESP32/DHT22 fisik, wiring, dan Android runtime belum diuji. |
 

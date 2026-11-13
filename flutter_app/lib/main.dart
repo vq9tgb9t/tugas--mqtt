@@ -97,14 +97,87 @@ class _CampusAppState extends State<CampusApp> {
     ),
     home: AnimatedBuilder(
       animation: widget.monitor,
-      builder: (context, _) => Dashboard(monitor: widget.monitor),
+      builder: (context, _) =>
+          Dashboard(monitor: widget.monitor, link: widget.link),
     ),
   );
 }
 
 class Dashboard extends StatelessWidget {
-  const Dashboard({super.key, required this.monitor});
+  const Dashboard({super.key, required this.monitor, this.link});
   final Monitor monitor;
+  final MqttLink? link;
+
+  Future<void> brokerCredentials(BuildContext context) async {
+    var username = '';
+    var password = '';
+    final form = GlobalKey<FormState>();
+    final result = await showDialog<(String, String)>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Kredensial broker MQTT'),
+        content: SingleChildScrollView(
+          child: Form(
+            key: form,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Hanya di memori sampai aplikasi ditutup. MQTT belum TLS: gunakan jaringan privat terisolasi. Kosongkan keduanya untuk demo anonymous lokal.',
+                ),
+                TextFormField(
+                  onChanged: (value) => username = value,
+                  maxLength: 128,
+                  decoration: const InputDecoration(
+                    labelText: 'Username broker',
+                  ),
+                  validator: (value) {
+                    if (value!.isEmpty != password.isEmpty) {
+                      return 'Isi kedua kolom atau kosongkan keduanya.';
+                    }
+                    if (RegExp(r'[\x00-\x1f]').hasMatch(value)) {
+                      return 'Karakter kontrol tidak diizinkan.';
+                    }
+                    return null;
+                  },
+                ),
+                TextFormField(
+                  onChanged: (value) => password = value,
+                  obscureText: true,
+                  validator: (value) =>
+                      RegExp(r'[\x00-\x1f]').hasMatch(value ?? '')
+                      ? 'Karakter kontrol tidak diizinkan.'
+                      : null,
+                  enableSuggestions: false,
+                  autocorrect: false,
+                  maxLength: 256,
+                  decoration: const InputDecoration(
+                    labelText: 'Password broker',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (form.currentState!.validate()) {
+                Navigator.pop(dialogContext, (username, password));
+              }
+            },
+            child: const Text('Hubungkan'),
+          ),
+        ],
+      ),
+    );
+    username = password = '';
+    if (result != null) await link?.authenticate(result.$1, result.$2);
+  }
 
   Widget metric(
     BuildContext context,
@@ -141,6 +214,14 @@ class Dashboard extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: const Text('Smart Campus'),
+      actions: [
+        if (link != null)
+          IconButton(
+            tooltip: 'Kredensial broker MQTT',
+            icon: const Icon(Icons.key),
+            onPressed: () => brokerCredentials(context),
+          ),
+      ],
       backgroundColor: const Color(0xfff2f4f7),
     ),
     body: SafeArea(

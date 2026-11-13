@@ -98,7 +98,30 @@ def main():
                     log = simulator_log.read()
                     assert 'SIMULATION HTTP failed' in log
                     assert 'SIMULATION HTTP 201' not in log
-                    print(json.dumps({'result': 'PASS', 'coverage': ['retained three topics late subscriber', 'normal offline retained', 'LWT after SIGKILL retained', 'online after process restart', 'MQTT samples despite HTTP refusal'], 'not_tested': ['Wi-Fi reconnect', 'broker outage reconnect', 'physical ESP32', 'Flutter UI', 'MySQL', 'network room isolation']}, indent=2))
+                    # Keep publisher PID alive through broker outage; Paho must reconnect.
+                    publisher_pid = simulator.pid
+                    broker.terminate()
+                    broker.wait(timeout=5)
+                    time.sleep(.5)
+                    broker = subprocess.Popen([args.broker, '-c', str(config)], stdout=broker_log, stderr=subprocess.STDOUT)
+                    processes.append(broker)
+                    deadline = time.monotonic() + 5
+                    while True:
+                        assert broker.poll() is None, 'Owned restarted broker exited'
+                        try:
+                            with socket.create_connection(('127.0.0.1', port), timeout=.2):
+                                break
+                        except OSError:
+                            if time.monotonic() > deadline:
+                                raise
+                            time.sleep(.05)
+                    resumed = subscriber()
+                    expect(resumed, 'status', b'online', timeout=30)
+                    expect(resumed, 'temperature', b'28.5', timeout=10)
+                    expect(resumed, 'temperature', b'28.5', timeout=10)
+                    assert simulator.poll() is None and simulator.pid == publisher_pid
+                    expect(subscriber(), 'status', b'online', True)
+                    print(json.dumps({'result': 'PASS', 'coverage': ['retained three topics late subscriber', 'normal offline retained', 'LWT after SIGKILL retained', 'online after process restart', 'MQTT samples despite HTTP refusal', 'same publisher reconnects after broker restart and restores retained status'], 'not_tested': ['Wi-Fi reconnect', 'physical ESP32', 'Flutter UI', 'MySQL', 'network room isolation']}, indent=2))
             finally:
                 for client in subscribers:
                     client.disconnect()

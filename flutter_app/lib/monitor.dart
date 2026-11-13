@@ -237,23 +237,32 @@ class MqttLink {
 
   static void _validateCredentials(String? u, String? p) {
     if ((u == null) != (p == null)) {
-      throw const FormatException('Username dan password broker harus berpasangan');
+      throw const FormatException(
+        'Username dan password broker harus berpasangan',
+      );
     }
-    if (u != null && (u.isEmpty || u.length > 128 || u.contains(RegExp(r'[\x00-\x1f]')))) {
+    if (u != null &&
+        (u.isEmpty || u.length > 128 || u.contains(RegExp(r'[\x00-\x1f]')))) {
       throw const FormatException('Format username broker tidak valid');
     }
-    if (p != null && (p.isEmpty || p.length > 256 || p.contains(RegExp(r'[\x00-\x1f]')))) {
+    if (p != null &&
+        (p.isEmpty || p.length > 256 || p.contains(RegExp(r'[\x00-\x1f]')))) {
       throw const FormatException('Format password broker tidak valid');
     }
   }
 
-  void updateCredentials(String? u, String? p) {
-    _validateCredentials(u, p);
-    username = u;
-    password = p;
-    if (_client != null) {
-      _client!.disconnect();
-    }
+  Future<void> authenticate(String u, String p) async {
+    final user = u.isEmpty ? null : u;
+    final secret = p.isEmpty ? null : p;
+    _validateCredentials(user, secret);
+    _retry?.cancel();
+    _client?.onDisconnected = null;
+    _client?.disconnect();
+    await _messages?.cancel();
+    _messages = null;
+    username = user;
+    password = secret;
+    await start();
   }
 
   Future<void> start() async {
@@ -343,6 +352,7 @@ class MqttLink {
 
   void close() {
     _closed = true;
+    username = password = null;
     monitor.onRoomChanged = null;
     _retry?.cancel();
     _messages?.cancel();
