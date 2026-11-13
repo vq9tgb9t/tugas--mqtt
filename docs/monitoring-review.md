@@ -18,3 +18,13 @@ Agent Office MCP tidak ditemukan dalam katalog sesi. Fallback resmi `office-work
 
 ## Kesiapan runtime saat pemeriksaan
 Flutter, Dart, Python, uv tersedia. Docker CLI tersedia tetapi socket desktop tidak tersedia. Mosquitto tidak ditemukan di PATH. Binary mysqld/mariadbd tersedia; keberadaan tidak berarti MySQL asli tersedia atau aman memakai database existing. Tidak mengubah layanan global. Hasil akhir pengujian dicatat QA secara terpisah.
+
+## Verifikasi ulang koordinator
+- Backend: 8/8 unit test mock lulus.
+- IoT: `python3 mqtt/self_check.py` lulus, termasuk keepalive saat sensor gagal.
+- QA: 4/4 uji simulasi lulus; 3 uji HTTP/MySQL dilewati dengan alasan eksplisit.
+- MQTT: runner `tests/monitoring/mqtt_runtime.py` dijalankan terhadap Mosquitto lokal yang ditemukan QA, proses baru terisolasi. Lulus retained tiga topik, normal offline, LWT setelah SIGKILL, online setelah restart simulator, MQTT tetap mengirim ketika HTTP ditolak.
+- Flutter: `flutter test` 9/9 lulus sesudah perbaikan empat tes layout; `flutter analyze` tanpa masalah. Parser lantai sudah bisa dikonfigurasi dan asset dibandingkan dengan konfigurasi root.
+- `git diff --check` bersih pada pemeriksaan.
+- Belum terbukti: penyimpanan MySQL asli, Android end-to-end, firmware/wiring fisik, reconnect Wi-Fi, reconnect setelah broker outage, isolasi antar-ruangan melalui jaringan nyata. Ini bukan penerimaan penuh.
+- Fallback Office sempat mengembalikan identitas `you=Widget` pada sesi koordinator sehingga pesan ke Widget ditolak `That's you`; tidak mengubah instalasi untuk mengatasinya.
