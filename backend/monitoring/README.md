@@ -34,17 +34,18 @@ install `PyMySQL[rsa]` pada venv; jangan melemahkan autentikasi akun global.
 set -a
 . backend/monitoring/.env
 set +a
-backend/monitoring/.venv/bin/uvicorn backend.monitoring.app:app --host 127.0.0.1 --port 8000
+backend/monitoring/.venv/bin/uvicorn backend.monitoring.app:app --host 127.0.0.1 --port 18000
 ```
 
-Bind loopback default untuk pengujian lokal. Akses ESP32 dari LAN memerlukan
-bind ke IP LAN yang disetujui dan aturan jaringan lokal; bukan deployment publik.
-API tidak punya login sesuai kontrak; jangan ekspos ke internet.
+Bind loopback default untuk pengujian lokal. API tanpa autentikasi sesuai scope;
+hanya untuk jaringan terisolasi tepercaya. Akses ESP32 memerlukan kontrol jaringan
+khusus dan bind ke IP yang disetujui. LAN bersama tanpa kontrol jaringan tidak aman.
+Jangan ekspos API ke internet; tidak ada klaim keamanan deployment publik.
 
 ```sh
-curl -i http://127.0.0.1:8000/readings -H 'Content-Type: application/json' \
+curl -i http://127.0.0.1:18000/readings -H 'Content-Type: application/json' \
   -d '{"device_id":"esp32-3s1","building":"gedung-saintek","room":"3S1","temperature":28.5,"humidity":70.2}'
-curl 'http://127.0.0.1:8000/readings?device_id=esp32-3s1&limit=100'
+curl 'http://127.0.0.1:18000/readings?device_id=esp32-3s1&limit=100'
 backend/monitoring/.venv/bin/python -m unittest backend.monitoring.test_app -v
 ```
 
@@ -80,7 +81,35 @@ Fake sukses perlu `cursor()` context manager, `execute`, `lastrowid`,
 `rollback`, `close`. Unit test mencakup validasi, batas, bentuk respons,
 parameter SQL, urutan SQL, commit gagal, rollback, dan error tersanitasi.
 
-Batas verifikasi: unit test memakai fake DB; belum membuktikan SQL/schema,
-penyimpanan, urutan nyata, autentikasi MySQL, atau end-to-end ESP32/Flutter.
-Docker unavailable dan MySQL existing tidak disentuh. Jalankan integrasi hanya
-setelah tersedia MySQL proyek terisolasi yang telah diinspeksi.
+## MySQL asli tanpa sudo / Docker / layanan global
+
+Runner opsional `local_mysql.py` membuat datadir baru di `/tmp/opencode` (private),
+bootstrap via socket tanpa TCP, lalu MySQL loopback port13306 dan API18000/18001.
+Memakai `--no-defaults`; menolak MariaDB, port3306, port bentrok. Akun aplikasi
+acak hanya SELECT/INSERT; kredensial root/aplikasi berada di fixture private,
+bukan repo. API18001 sengaja menunjuk database tidak ada pada MySQL milik runner,
+bukan layanan existing. Runner menjalankan acceptance QA, lalu menutup hanya
+proses anak miliknya. `--serve` mempertahankan layanan untuk tes Flutter sampai
+Ctrl-C/SIGTERM runner; datadir/log tetap disimpan untuk inspeksi.
+
+Contoh download resmi MySQL Community 8.4.7 x86_64 Linux; pastikan platform
+sesuai dan dependensi sistem binary tersedia. Jangan memakai `mysqld` global.
+
+```sh
+curl -fL https://dev.mysql.com/get/Downloads/MySQL-8.4/mysql-8.4.7-linux-glibc2.28-x86_64-minimal.tar.xz \
+  -o /tmp/opencode/mysql-8.4.7-minimal.tar.xz
+tar -xJf /tmp/opencode/mysql-8.4.7-minimal.tar.xz -C /tmp/opencode
+backend/monitoring/.venv/bin/pip install -r backend/monitoring/requirements-local-mysql.txt
+backend/monitoring/.venv/bin/python backend/monitoring/local_mysql.py \
+  --mysql-home /tmp/opencode/mysql-8.4.7-linux-glibc2.28-x86_64-minimal --serve
+```
+
+Jangan jalankan API manual pada port yang sedang dimiliki runner. Port dapat
+diubah dengan `--db-port`, `--api-port`, `--failed-api-port`. Acceptance QA butuh
+checkout terintegrasi `tests/monitoring`. Tidak ada download otomatis oleh runner.
+Tidak ditambah Compose: runner lokal sudah cukup dan telah diuji; daemon Docker
+existing tidak diperlukan atau diubah.
+
+Bukti pengujian MySQL asli: [RUNTIME.md](RUNTIME.md). Unit test tetap mock;
+pengujian nyata terpisah membuktikan schema, autentikasi MySQL, commit dan HTTP.
+Sensor fisik/Android end-to-end belum dibuktikan oleh pengujian backend.

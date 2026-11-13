@@ -1,0 +1,3 @@
+-r requirements-test.txt
+# Local MySQL 8 caching_sha2_password authentication over isolated loopback.
+PyMySQL[rsa]>=1.1.1,<2

@@ -1,0 +1,8 @@
+# INACTIVE TEMPLATE. Copy to mqtt/private/mosquitto.conf; replace IP and paths.
+# Bind only host's private LAN IP, never 0.0.0.0/public IP.
+listener 18884 192.168.1.10
+allow_anonymous false
+password_file /ABSOLUTE/PROJECT/PATH/mqtt/private/passwords
+acl_file /ABSOLUTE/PROJECT/PATH/mqtt/acl.lan.conf
+persistence false
+log_dest stdout

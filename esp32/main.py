@@ -8,7 +8,7 @@ import dht
 from machine import Pin
 from umqtt.simple import MQTTClient, MQTTException
 import config
-from monitoring import reading, connect_mqtt, publish_reading, disconnect_mqtt, keepalive
+from monitoring import reading, connect_mqtt, publish_reading, disconnect_mqtt, keepalive, write_all
 
 with open('locations.json') as source:
     locations = json.load(source)
@@ -18,6 +18,15 @@ for host in (config.MQTT_HOST, config.HTTP_HOST):
     parts = host.split('.')
     if len(parts) != 4 or any(not p.isdigit() or not 0 <= int(p) <= 255 for p in parts):
         raise ValueError('Use numeric IPv4 hosts')
+
+if config.MQTT_USER is not None or config.MQTT_PASSWORD is not None:
+    if not isinstance(config.MQTT_USER, str) or not config.MQTT_USER or not isinstance(config.MQTT_PASSWORD, str) or not config.MQTT_PASSWORD:
+        raise ValueError('MQTT_USER and MQTT_PASSWORD must both be nonempty strings or both None')
+for port in (config.MQTT_PORT, config.HTTP_PORT):
+    if isinstance(port, bool) or not isinstance(port, int) or not 1 <= port <= 65535:
+        raise ValueError('Port must be 1..65535')
+if isinstance(config.HTTP_TIMEOUT, bool) or not isinstance(config.HTTP_TIMEOUT, (int, float)) or not 0 < config.HTTP_TIMEOUT <= 10:
+    raise ValueError('HTTP_TIMEOUT must be finite, >0 and <=10 seconds')
 
 lock = _thread.allocate_lock()
 pending = None
@@ -42,15 +51,11 @@ def http_worker():
             sock = socket.socket()
             sock.settimeout(config.HTTP_TIMEOUT)
             sock.connect((config.HTTP_HOST, config.HTTP_PORT))
-            sent = 0
-            while sent < len(request):
-                count = sock.write(request[sent:])
-                if not count:
-                    raise OSError('HTTP short write')
-                sent += count
+            write_all(sock, request, config.HTTP_TIMEOUT)
             # One bounded receive, no unbounded slow-header loop.
-            status = sock.recv(256).split(b'\r\n', 1)[0].split()
-            if len(status) < 2 or status[1] != b'201':
+            response = sock.recv(256)
+            status = response.split(b'\r\n', 1)[0].split()
+            if b'\r\n' not in response or len(status) < 2 or status[0] not in (b'HTTP/1.0', b'HTTP/1.1') or status[1] != b'201':
                 raise OSError('HTTP did not confirm 201')
             print('HTTP 201 committed')
         except Exception:

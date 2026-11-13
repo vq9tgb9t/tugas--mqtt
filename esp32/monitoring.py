@@ -1,5 +1,24 @@
 """Shared contract helpers; CPython and MicroPython."""
 import math
+import time
+
+
+def write_all(sock, data, timeout=3):
+    # Total write budget as well as per-socket-operation timeout.
+    ticks = getattr(time, 'ticks_ms', None)
+    started = ticks() if ticks else time.monotonic()
+    sent = 0
+    while sent < len(data):
+        elapsed = time.ticks_diff(ticks(), started) / 1000 if ticks else time.monotonic() - started
+        if elapsed >= timeout:
+            raise OSError('Write deadline exceeded')
+        sock.settimeout(timeout - elapsed)
+        count = sock.write(memoryview(data)[sent:])
+        if not count:
+            raise OSError('Short write')
+        sent += count
+    sock.settimeout(timeout)
+    return sent
 
 
 def reading(locations, building, room, temperature, humidity):
@@ -18,9 +37,32 @@ def topic(data, kind):
     return ('kampus2uinsaizu/%s/ruang-%s/%s' % (data['building'], data['room'], kind)).encode()
 
 
+class FullWriteSocket:
+    """umqtt.simple writes may be short on timeout-enabled sockets."""
+    def __init__(self, sock):
+        self.sock = sock
+
+    def write(self, data, size=None):
+        data = memoryview(data)[:size] if size is not None else memoryview(data)
+        return write_all(self.sock, data)
+
+    def connect(self, address):
+        return self.sock.connect(address)
+
+    def read(self, size):
+        return self.sock.read(size)
+
+    def settimeout(self, timeout):
+        self.sock.settimeout(timeout)
+
+    def close(self):
+        self.sock.close()
+
+
 def connect_mqtt(client, data, timeout=3):
     client.set_last_will(topic(data, 'status'), b'offline', retain=True)
     client.connect(timeout=timeout)
+    client.sock = FullWriteSocket(client.sock)
     client.sock.settimeout(timeout)
     client.publish(topic(data, 'status'), b'online', retain=True)
 
